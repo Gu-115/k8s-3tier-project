@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -32,13 +33,13 @@ pipeline {
 
         stage('Build Backend Docker Image') {
             steps {
-                sh 'docker build -t k8s-backend:latest ./backend'
+                sh 'docker build -t k8s-backend:v1 ./backend'
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
-                sh 'docker build -t frontend:latest ./frontend'
+                sh 'docker build -t frontend:v1 ./frontend'
             }
         }
 
@@ -47,18 +48,19 @@ pipeline {
                 sh '''
                     kubectl apply -f backend/backend.yaml
                     kubectl apply -f frontend/frontend.yaml
+
+                    kubectl rollout restart deployment/backend
+                    kubectl rollout restart deployment/frontend
+
+                    kubectl rollout status deployment/backend --timeout=120s
+                    kubectl rollout status deployment/frontend --timeout=120s
+
+                    kubectl get pods
+                    kubectl get services
                 '''
             }
         }
     }
-
-    post {
-        success {
-            echo 'CI/CD Pipeline completed successfully!'
-        }
-
-        failure {
-            echo 'CI/CD Pipeline failed!'
-        }
-    }
 }
+```
+
