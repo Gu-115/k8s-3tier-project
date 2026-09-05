@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        BACKEND_IMAGE = "k8s-backend:v1"
+        FRONTEND_IMAGE = "frontend:v1"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -25,6 +30,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
+                    export PYTHONPATH=$WORKSPACE
                     pytest backend/tests
                 '''
             }
@@ -32,33 +38,28 @@ pipeline {
 
         stage('Build Backend Docker Image') {
             steps {
-                sh 'docker build -t k8s-backend:v1 ./backend'
+                sh '''
+                    docker build -t $BACKEND_IMAGE ./backend
+                '''
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
-                sh 'docker build -t frontend:v1 ./frontend'
+                sh '''
+                    docker build -t $FRONTEND_IMAGE ./frontend
+                '''
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                    kubectl apply -f backend/backend.yaml
-                    kubectl apply -f frontend/frontend.yaml
-
-                    kubectl rollout restart deployment/backend
-                    kubectl rollout restart deployment/frontend
-
-                    kubectl rollout status deployment/backend --timeout=120s
-                    kubectl rollout status deployment/frontend --timeout=120s
-
-                    kubectl get pods
-                    kubectl get services
+                    kubectl apply -f k8s/
+                    kubectl rollout status deployment/backend
+                    kubectl rollout status deployment/frontend
                 '''
             }
         }
     }
 }
-
